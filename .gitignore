@@ -1,0 +1,6 @@
+*.~
+*.jpg
+*.bmp
+*.bz2
+#results/
+#testsample/

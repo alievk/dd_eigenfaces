@@ -1,0 +1,1 @@
+http://blog.cordiner.net/2010/12/02/eigenfaces-face-recognition-matlab/
