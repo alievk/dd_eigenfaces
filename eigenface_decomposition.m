@@ -2,7 +2,7 @@
 clc
 clear
 folder = ('./testsample');
-f = fullfile(folder, 'Test4s.jpg');
+f = fullfile(folder, 'Test5s.jpg');
 oimg = imread(f);
 %% cut image in squares
 oimg_ht = size(oimg, 1); % original image height
@@ -60,7 +60,7 @@ sht_mt = img_mt - repmat(mea_fc, 1, grd_rt);
 % calculate the ordered eigenvectors and eigenvalues
 % each column containins coefficients for one principial component (ordered
 % by decreasing component variance)
-smp_nm = 10;
+smp_nm = 13;
 smp_ix = 1:smp_nm; % 
 eig_vc = zeros(prod(blk_dm), prod(blk_dm), grd_rt);
 for l = 1:grd_rt
@@ -77,25 +77,32 @@ for l = 1:grd_rt
     ftr_vc(:,:,l) = eig_vc(:,:,l)' * sht_mt(:,smp_ix,l);
 end
 %% compare squares with eigenfaces
+% we have to skip training rows while processing irregularity scores
+tst_ix = smp_nm+1:grd_rt; % !!! this vector depends on smp_ix !!!
+tst_nm = size(tst_ix, 2);
 % calculate the similarity of the input to each trainig image
-ftr_in = zeros(num_ei, grd_rt, grd_rt);
+ftr_in = zeros(num_ei, tst_nm, grd_rt);
 for l = 1:grd_rt
-    ftr_in(:,:,l) = eig_vc(:,:,l)' * sht_mt(:,:,l);
+    ftr_in(:,:,l) = eig_vc(:,:,l)' * sht_mt(:,tst_ix,l);
 end
 
-irr_sc = zeros(grd_rt, grd_rt); % irregularity score
+% calculate irregularity score
+irr_sc = zeros(tst_nm, grd_rt);
 for l = 1:grd_rt
-    for m = 1:grd_rt
+    for m = 1:tst_nm
         slr = arrayfun(@(f)(norm(ftr_vc(:,f,l) - ftr_in(:,m,l))), 1:smp_nm);
         [mtc_sc, mtc_ix] = min(slr);
         irr_sc(m,l) = mtc_sc;
     end
 end
-irr_sc = irr_sc / max(max(irr_sc)); % is there more clever way to do this?
-%% plot similarityscore and image with found irregularities
-%t=(((mean(slr_sc(33:end))-slr_sc(33:end))/std(slr_sc(33:end)))); % ???
-%plot(abs(t),'o','MarkerFaceColor','b'),grid on,xlabel('Image-Quadrant'),ylabel('Normalized Similarity Score')
-%surf(slr_sc);
+
+% calculate normalized [0;1] standart deviation for each group
+std_dv = std(irr_sc);
+std_dv = std_dv ./ repmat(max(std_dv), 1, size(std_dv, 2)); % WOULD WORK ONLY IF THERE ANY REGULARITIES
+% calculate normalized [0;1] irregularity score for each tile
+irr_sc = irr_sc - repmat(mean(irr_sc), size(irr_sc, 1), 1);
+irr_sc = irr_sc - repmat(min(irr_sc),  size(irr_sc, 1), 1);
+irr_sc = irr_sc./ repmat(max(irr_sc),  size(irr_sc, 1), 1);
 %% visualization of irregularities
 figure;
 % !!! I don't like this way making grayscale RGB... I think it could be
@@ -106,10 +113,14 @@ rgb_im = repmat(gry_im, [1 1 3]); % make RGB image from grayscale
 mrk_cl = [.5 .5 0.]; % color of the marker
 mrk_pt = cat(3, mrk_cl(1)*ones(blk_dm), mrk_cl(2)*ones(blk_dm), mrk_cl(3)*ones(blk_dm)); % marker pattern
 for l = 1:grd_rt % group/latitude
-    for m = 1:grd_rt % block/longitude
+    for m = 1:tst_nm % block/longitude
+        if std_dv(l) < 0.2
+            continue
+        end
+        m_ = m + smp_nm;
         lf = blk_wd * (l - 1) + 1;
         rt = lf + blk_wd - 1;
-        tp = blk_ht * (m - 1) + 1;
+        tp = blk_ht * (m_ - 1) + 1;
         dw = tp + blk_ht - 1;
         mrk_md = irr_sc(m, l) .* mrk_pt; % marker with modulated by 'similarity score' color
         rgb_im(tp:dw, lf:rt, :) = rgb_im(tp:dw, lf:rt, :) + mrk_md;
