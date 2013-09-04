@@ -2,5 +2,6 @@
 *.jpg
 *.bmp
 *.bz2
+*.std
 #results/
 #testsample/
